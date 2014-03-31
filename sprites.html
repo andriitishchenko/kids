@@ -1,0 +1,658 @@
+<!doctype html>
+<html ng-app>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script language="javascript" src="javascripts/jquery.color.js" type="text/javascript"></script>
+    <style type="text/css" media="screen">
+      *{
+        margin: 0;
+        padding: 0;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        font: bold 100% sans-serif;
+      }
+
+      #patern_div{
+        position: absolute;
+        width: 100px;
+        top: 0;
+        right: 0;
+        border: 2px solid BlueViolet;
+        -webkit-border-bottom-left-radius: 50px;
+        border-bottom-left-radius: 50px;
+        border-top: none;
+        border-right: none;
+
+      }
+      #patern_label{
+        color: BlueViolet;
+        width: auto;
+        text-align: center;
+        
+        margin: 25px 0 25px 0;
+      }
+      #sound_div{
+        position: absolute;
+        width: 50px;
+        height: 50px;
+        top: 20px;
+        left: 20px;
+        background: transparent url('vol2.png') no-repeat 0 0;
+      }
+      #sound_div.sound_off{
+        background-position: 0 -50px;
+      }
+
+      @media (-webkit-min-device-pixel-ratio: 2)
+      {
+        *{
+            font: bold 150% sans-serif;
+        }
+        #patern_div{
+        position: absolute;
+        width: 200px;
+        top: 0;
+        right: 0;
+        border: 2px solid BlueViolet;
+        -webkit-border-bottom-left-radius: 100px;
+        border-bottom-left-radius: 100px;
+        border-top: none;
+        border-right: none;
+
+      }
+      #patern_label{
+        color: BlueViolet;
+        width: auto;
+        text-align: center;
+        
+        margin: 50px 0 50px 0;
+      }
+
+      }
+    </style>
+    <!-- fill iPhone screen with canvas -->
+    <!--<meta name="viewport" content="width=100" />-->
+
+    <title>Pop the Bubbles</title>
+    <script type="text/javascript">
+
+    //global
+        var can, ctx,snd,
+            bubble = [],
+            mouseIsDown = 0, 
+            len = 0,
+            winW = 630, 
+            winH = 460,
+            targets = [],
+            touches = [],
+            exlosions =[],
+            patern = 0;
+            targetGenerated = -1;
+
+        var FPS = 25;
+
+        var sprite = new Image();
+        sprite.src = "sprite.jpeg";
+
+        //ui
+        var parentLabel ,audio_fail,audio_success;
+
+        var GameType =0;
+
+        var sound = true;
+
+function Point(x,y)
+{
+    return{
+            x: (x+0.5)<<0,
+            y: (y+0.5)<<0
+            };
+}
+
+    //Objects
+    //explosion
+
+function explosion(epicenter,radius,particles_count)
+{
+    var I={};
+    I.x = epicenter.x;
+    I.y = epicenter.y;
+    I.radius = radius;
+    I.particles_count =particles_count;
+    I.particles = [];
+    I.active = true;
+
+    var fill_particle = function()
+    {
+        var pcount = I.particles_count - I.particles.length;
+        for(var i = 0; i < pcount; i++)
+        {
+            I.particles.push(new I.particle_item(I.x,I.y,10));
+        }
+    }
+    
+    I.particle_item = function(x,y,lenght){
+        this.x = x;
+        this.y = y;
+        this.active = true;
+    //Lets add random velocity to each particle
+        this.vx = Math.random()*lenght-lenght/2;
+        this.vy = Math.random()*lenght-lenght/2;
+    //Random colors
+        var r = Math.random()*255>>0;
+        var g = Math.random()*255>>0;
+        var b = Math.random()*255>>0;
+        this.color = "rgba("+r+", "+g+", "+b+", 0.5)";
+    //Random size
+        this.radius = Math.random()*lenght+lenght;
+    }
+
+    I.draw = function(){
+        //draw particles
+        for(var t = 0; t < I.particles.length; t++)
+        {
+            var p = I.particles[t];
+            
+            ctx.beginPath();
+            
+            //Time for some colors
+            var gradient = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius);
+            gradient.addColorStop(0, "white");
+            gradient.addColorStop(0.4, "white");
+            gradient.addColorStop(0.4, p.color);
+            gradient.addColorStop(1, "black");
+            
+            ctx.fillStyle = gradient;
+            ctx.arc(p.x, p.y, p.radius, Math.PI*2, false);
+            ctx.fill();
+            
+            p.radius--;
+            p.x += p.vx;
+            p.y += p.vy;
+
+            if(p.x < I.x-I.radius||
+                p.x > I.x+I.radius|| 
+                p.y < I.y-I.radius||
+                p.y > I.x+I.radius||
+                p.radius<3)
+            {
+                 p.active = false; 
+            }
+        }
+        I.particles = I.particles.filter(function(item) {
+                return item.active;
+              });
+        if(I.particles.length < 3)
+        {
+            //fill_particle();
+            I.active = false;
+        }
+    }
+        
+    
+    fill_particle();
+    
+    return I;
+}
+
+
+    //Touch object
+        function TouchObj(I) {
+            I = I || {};
+            I.x = 0;
+            I.y = 0;
+            return I;
+        }
+
+        function TargetObj(I) {
+          I = I || {};
+          I.active = true;
+          I.color = "#A2B";
+          I.x = can.width / 4 + Math.random() * can.width / 2;
+          I.y = 0;
+          I.xVelocity = 0
+          I.yVelocity = randomInRange(1,2);
+          I.step = Math.floor(Math.random() * 128);
+            I.width = 32;
+            I.height = 32;
+        if (isRetina()) {
+          I.width*=2;
+          I.height*=2;
+        }
+          I.label = "";
+          I.tag = 0;
+          I.patern =0;
+
+          
+            var r = Math.random()*150>>0;
+            var g = Math.random()*150>>0;
+            var b = Math.random()*150>>0;
+            I.color = "rgba("+r+", "+g+", "+b+", 1.0)";
+
+          I.inBounds = function() {
+            return I.x > 0 && I.x < can.width &&
+              I.y > 0 && I.y < can.height;
+          };
+
+          I.draw = function() {
+           // console.log(I.x,I.y);
+                
+                /*
+                ctx.strokeStyle = "red";
+                ctx.beginPath();
+                ctx.arc(I.x,I.y, I.width/2, 0, 2 * Math.PI);
+                ctx.closePath();
+                ctx.stroke();
+                */
+
+                ctx.save();
+                ctx.beginPath();
+                ctx.arc(I.x,I.y, I.width/2, 0, Math.PI * 2, false);
+                ctx.clip();
+                ctx.drawImage(sprite, I.x-100, I.y-100);    
+                //ctx.restore();
+/*
+            ctx.fillStyle = I.color;//"rgba(93,179,199,0.20)";
+            ctx.beginPath();
+            //ctx.arc(I.x,I.y,I.width/2,Math.PI*2,true);
+            ctx.arc(I.x,I.y, I.width/2, 0, 2 * Math.PI);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.fillStyle="#CC00FF";
+            ctx.lineStyle="#ffff00";
+            ctx.textAlign = 'center';
+*/
+            var str = String.fromCharCode(I.patern);
+
+            if (I.patern<10) {
+                str=""+I.patern;
+            }
+
+            if(isRetina())
+            {
+                ctx.font="36px sans-serif";
+                ctx.fillText(str, I.x, I.y+12);    
+            }else
+            {
+                ctx.font="18px sans-serif";
+                ctx.fillText(str, I.x, I.y+6);
+            }
+            
+                ctx.restore();
+            
+
+  
+            /*
+                // Draw Image function
+            var img = new Image();
+            img.src = "images/Figure_A.png";
+            img.onload = function() {
+                ctx.drawImage(img, 145, 145);
+            };
+            */
+          };
+        
+          I.update = function() {
+            I.x += I.xVelocity;
+            I.y += I.yVelocity;
+        
+            I.xVelocity = 3 * Math.sin(I.step * Math.PI / 64);
+            I.step++;
+            I.active = I.active && I.inBounds();
+            
+          };
+        
+          I.die = function() {
+            
+            I.active = false;
+
+            var point = {};
+            point.x = I.x;
+            point.y = I.y;  
+            exlosions.push(explosion(point,50,10));   
+          };
+
+          I.validate = function(_patern)
+          {
+            if (I.patern == _patern) {
+                return true;
+            }
+            return false;
+          }
+        
+          return I;
+        };
+
+
+    function getWindowSize()
+    {
+    if (document.body && document.body.offsetWidth) {
+        winW = document.body.offsetWidth;
+        winH = document.body.offsetHeight;
+    }
+    if (document.compatMode=='CSS1Compat' &&
+        document.documentElement &&
+        document.documentElement.offsetWidth ) {
+        winW = document.documentElement.offsetWidth;
+        winH = document.documentElement.offsetHeight;
+    }
+    if (window.innerWidth && window.innerHeight) {
+        winW = window.innerWidth;
+        winH = window.innerHeight;
+    }
+
+    }
+
+    function randomInRange(min, max)
+    {
+        return Math.floor(Math.random() * (max - min) + min);
+    }
+
+
+    window.onresize = function(event) {
+        getWindowSize();
+        can.height = winH;
+        can.width = winW;
+    }
+    
+    function isRetina()
+    {
+        return window.devicePixelRatio > 1;
+    }
+
+
+        function init() {
+            //var retina = window.devicePixelRatio > 1;
+            /*
+            if (retina) {
+                        
+            }
+            else {
+                // the user has a non-retina display
+            }
+            */
+            //fullscreen();
+ 
+            can = document.getElementById("can");
+            if (can.requestFullscreen) {
+              can.requestFullscreen();
+            } else if (can.mozRequestFullScreen) {
+              can.mozRequestFullScreen();
+            } else if (can.webkitRequestFullscreen) {
+              can.webkitRequestFullscreen();
+            }
+           
+            getWindowSize();
+           
+            can.height = winH;
+            can.width = winW;
+            ctx = can.getContext("2d");
+
+
+            parentLabel = document.getElementById("patern_label");
+            var panel = document.getElementById("patern_div");
+            //panel.onclick = liClickHandler;
+            //panel.addEventListener("touchend", liClickHandler, false);
+            panel.addEventListener("mousedown", liClickHandler, false);
+
+            var sound_div = document.getElementById("sound_div");
+            sound_div.addEventListener("mousedown", sound_divClickHandler, false);
+
+
+            audio_fail    = new Audio("sounds/2.mp3");
+            audio_success = new Audio("sounds/1.mp3");
+
+ 
+
+            can.addEventListener("mousedown", mouseDown, false);
+            //can.addEventListener("mousemove", mouseXY, false);
+            can.addEventListener("touchstart", touchDown, false);
+            can.addEventListener("touchend", touchUp, false);
+            can.addEventListener("touchmove", touchXY, false);
+ 
+            document.body.addEventListener("mouseup", mouseUp, false);
+            document.body.addEventListener("touchcancel", touchUp, false);
+            
+            newPatern();
+                    //sceen loop
+            var s= setInterval(function() {
+                update();
+                draw();
+            }, 1000/FPS);
+            
+            var t= setInterval(function() {
+                targets.push(createTarget());
+            }, 1000 * 2);
+            
+        }
+ 
+        function mouseUp() {
+            mouseIsDown = 0;
+            //mouseXY();
+        }
+ 
+        function mouseDown() {
+            mouseIsDown = 1;
+            mouseXY();
+        }
+ 
+        function touchDown() {
+            mouseIsDown = 1;
+            touchXY();
+        }
+ 
+        function touchUp(e) {
+            if (!e)
+                e = event;
+            len = e.targetTouches.length;
+        }
+ 
+        function mouseXY(e) {
+            if (!e)
+                e = event;
+            touches =[];
+            var touch = TouchObj();
+            touch.x = e.pageX - can.offsetLeft;
+            touch.y = e.pageY - can.offsetTop;
+            //console.log("touch = ",touch.x,touch.y);
+            touches.push(touch);
+        }
+ 
+        function touchXY(e) {
+            if (!e)
+                e = event;
+            e.preventDefault();
+            touches =[];
+            for (i = 0; i < e.targetTouches.length; i++) {
+                var touch = TouchObj();
+                touch.x = e.targetTouches[i].pageX - can.offsetLeft;
+                touch.y = e.targetTouches[i].pageY - can.offsetTop;
+                touches.push(touch);
+            }
+        }
+        
+        function update() {
+            for (var i = 0; i < targets.length; i++) {
+              targets[i].update();
+            }
+        
+          targets = targets.filter(function(target) {
+            return target.active;
+          });
+
+          exlosions = exlosions.filter(function(item) {
+            return item.active;
+          });
+        
+          collisionDetection();
+
+        
+            for(var i=0; i <= 3-targets.length; i++){
+                targets.push(createTarget());
+            }
+        }
+
+        function createTarget(){
+            targetGenerated++;
+            var chPatern = randomInRange(1040,1071);
+
+            if (GameType==1) {
+                chPatern = randomInRange(1,9);                
+            };
+
+            if (targetGenerated == 6) {
+                targetGenerated = 0;
+                chPatern = patern;
+            }
+            var t = TargetObj();
+            t.patern = chPatern;
+            return t;
+        }
+
+
+        function draw() {
+            //ctx.clearRect(0, 0,can.width , can.height);
+
+            //ctx.globalCompositeOperation = "source-over";
+              
+             can.width = can.width; 
+
+            ctx.globalCompositeOperation = "source-over";
+            ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+            ctx.fillRect(0, 0, can.width, can.height);
+            ctx.globalCompositeOperation = "lighter";
+                    for (var i = 0;i<exlosions.length ; i++) {
+                        var exp = exlosions[i];
+                        exp.draw();
+                    }
+            
+            for (var i = 0; i<targets.length; i++) {
+                  targets[i].draw();
+              }
+            //ctx.globalCompositeOperation = "destination-out";
+
+              
+
+
+
+
+              //ctx.stroke();
+        }
+
+        function collisionDetection() {
+            for (var i = 0; i< targets.length; i ++) {
+                for (var j = 0; j < touches.length; j++) {
+                    if(pointInRect(touches[j], targets[i])) {
+                        if (targets[i].validate(patern)) {
+                            newPatern();
+                            success();
+                        }
+                        else
+                        {
+                            fail();
+                        }
+                        targets[i].die();
+                    }
+                }
+            }
+            touches=[];
+        }
+
+        function pointInRect(point, rect) {
+          return point.x >= rect.x-rect.width/2  &&
+                point.x <= rect.x + rect.width/2 &&
+                point.y >= rect.y-rect.height/2 &&
+                point.y <= rect.y+rect.height/2;
+        }
+
+        function newPatern()
+        {
+            var str = "";
+            patern = randomInRange(1040,1071);
+            str = String.fromCharCode(patern);
+            if (GameType==1) {
+                patern = randomInRange(1,9);
+                str = ""+patern;
+            };
+            parentLabel.innerHTML = str;
+        }
+
+        function success()
+        {
+            $("#patern_div").stop().animate({
+                            backgroundColor: "green"
+                            }, 500, function() {
+                            resetpatern_div();
+                            });
+            if (sound){
+                audio_success.play();
+            }
+        }
+
+        function fail()
+        {
+            $("#patern_div").stop().animate({
+                            backgroundColor: "red"
+                            }, 500, function() {
+                            resetpatern_div();
+                            });
+            if (sound){
+               audio_fail.play();
+            }
+        }
+        function resetpatern_div()
+        {
+           $("#patern_div").animate({backgroundColor: "black"}, 500);
+        }
+
+        function fullscreen()
+        {
+            var el = document.documentElement, rfs = el.requestFullScreen || el.webkitRequestFullScreen || el.mozRequestFullScreen;
+            rfs.call(el);
+        }
+
+        function liClickHandler()
+        {
+            GameType=GameType==0?1:0;
+            newPatern();
+        }
+
+        function sound_divClickHandler()
+        {
+            sound=!sound;
+            if (sound) {
+                $("#sound_div").removeClass();
+            }
+            else{
+                $("#sound_div").addClass("sound_off");
+            }
+        }
+    </script>
+    <script type="text/javascript">
+      var _gaq = _gaq || [];
+      _gaq.push(['_setAccount', 'UA-39399632-1']);
+      _gaq.push(['_trackPageview']);
+
+      (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+      })();
+    </script>
+</head>
+<body onload="init()">
+    <canvas id="can" height="200" width="300" style="background-color:black">
+    </canvas>
+    <div id="patern_div" class="patern_div">
+        <div id="patern_label"></div>
+    </div>
+    <div id="sound_div"></div>
+</body>
+</html>

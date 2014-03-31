@@ -1,0 +1,98 @@
+<!doctype html>
+<html ng-app>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <style type="text/css" media="screen">
+      *{
+        margin: 0;
+        padding: 0;
+        -webkit-touch-callout: none;
+        -webkit-user-select: none;
+        -khtml-user-select: none;
+        -moz-user-select: none;
+        -ms-user-select: none;
+        user-select: none;
+        font: bold 100% sans-serif;
+      }
+    </style>
+    <title>Pop the Bubbles</title>
+    <script type="text/javascript">
+
+var ctx;
+var canvas;
+var mouse = {
+    x: 0,
+    y: 0
+} //make an object to hold mouse position
+
+var img = new Image();
+
+img.src = "http://www.antiquiet.com/wp-content/uploads/2011/03/Free-Trapper_Remasters_The-Kills-467x311.jpg";
+
+
+$(function() {
+
+    canvas = document.getElementById('myCanvas');
+    ctx = canvas.getContext('2d');
+
+
+    canvas.onmousemove = function(e) {
+        mouse = {
+            x: e.pageX - this.offsetLeft,
+            y: e.pageY - this.offsetTop
+        };
+    } //update the mouse when the canvas is moved over
+    setInterval(start_drawing, 100); // set the animation into motion
+    ctx.beginPath();
+    ctx.fillStyle = "rgb(255,255,255)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height); //fill the background. color is default black
+    ctx.closePath();
+});
+
+function start_drawing() {
+    canvas.width = canvas.width; // This is the trick... we need to reset the canvas to reset the clip region...
+    ctx.beginPath();
+    ctx.fillStyle = "rgb(255,255,255)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height); //fill the background. color is default black
+    ctx.closePath();
+
+
+    ctx.beginPath();
+    ctx.arc(mouse.x-100, mouse.y-100, 40, 0, 6.0, false); //draw the circle
+    ctx.clip(); 
+    ctx.stroke();
+    ctx.closePath();
+    ctx.drawImage(img, mouse.x - 100, mouse.y-100);
+    
+    ctx.save();
+
+    ctx.beginPath();
+    ctx.arc(mouse.x, mouse.y, 60, 0, 6.0, false); //draw the circle
+    ctx.restore();
+    ctx.clip(); 
+    ctx.stroke();
+    ctx.closePath();
+    ctx.drawImage(img, mouse.x - 290, mouse.y-100);
+    
+    
+    
+    
+}
+
+      var _gaq = _gaq || [];
+      _gaq.push(['_setAccount', 'UA-39399632-1']);
+      _gaq.push(['_trackPageview']);
+
+      (function() {
+        var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+        ga.src = ('https:' == document.location.protocol ? 'https://ssl' : 'http://www') + '.google-analytics.com/ga.js';
+        var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+      })();
+    </script>
+</head>
+<body>
+    <canvas id="myCanvas" width="500" height="500"></canvas>
+</body>
+</html>

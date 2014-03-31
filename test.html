@@ -1,0 +1,129 @@
+<html>
+<head>
+ 
+    <style type="text/css" media="screen">
+      *{
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+    <!-- fill iPhone screen with canvas -->
+    <meta name="viewport" content="width=400" />
+    <title>Pop the Bubbles</title>
+    <script type="text/javascript">
+        var can, ctx,
+            canX = [], canY = [], bubble = [],
+            mouseIsDown = 0, len = 0;
+        var winW = 630, winH = 460;
+
+
+    function getWindowSize()
+    {
+    if (document.body && document.body.offsetWidth) {
+        winW = document.body.offsetWidth;
+        winH = document.body.offsetHeight;
+    }
+    if (document.compatMode=='CSS1Compat' &&
+        document.documentElement &&
+        document.documentElement.offsetWidth ) {
+        winW = document.documentElement.offsetWidth;
+        winH = document.documentElement.offsetHeight;
+    }
+    if (window.innerWidth && window.innerHeight) {
+        winW = window.innerWidth;
+        winH = window.innerHeight;
+    }
+
+    }
+
+    function getRandomArbitary(min, max)
+    {
+        return Math.random() * (max - min) + min;
+    }
+
+
+    window.onresize = function(event) {
+        getWindowSize();
+        can.height = winH;
+        can.width = winW;
+    }
+ 
+        function init() {
+            getWindowSize();
+            can = document.getElementById("can");
+            can.height = winH;
+            can.width = winW;
+            ctx = can.getContext("2d");
+ 
+            can.addEventListener("mousedown", mouseDown, false);
+            can.addEventListener("mousemove", mouseXY, false);
+            can.addEventListener("touchstart", touchDown, false);
+            can.addEventListener("touchend", touchUp, false);
+            can.addEventListener("touchmove", touchXY, false);
+ 
+            document.body.addEventListener("mouseup", mouseUp, false);
+            document.body.addEventListener("touchcancel", touchUp, false);
+            
+            var img = new Image();
+            img.src = "images/player.png";
+            
+            img.onload = function() {
+            ctx.drawImage(img, 145, 145);
+
+            ctx1 = img.getContext("2d");
+
+            ctx.lineWidth=1;
+            ctx.fillStyle="#CC00FF";
+            ctx.lineStyle="#ffff00";
+            ctx.font="18px sans-serif";
+            ctx.fillText("A", 145+img.width/2, 145+img.height/2);
+
+        }
+    }
+ 
+        function mouseUp() {
+            mouseIsDown = 0;
+            mouseXY();
+        }
+ 
+        function mouseDown() {
+            mouseIsDown = 1;
+            mouseXY();
+        }
+ 
+        function touchDown() {
+            mouseIsDown = 1;
+            touchXY();
+        }
+ 
+        function touchUp(e) {
+            if (!e)
+                e = event;
+            len = e.targetTouches.length;
+        }
+ 
+        function mouseXY(e) {
+            if (!e)
+                e = event;
+            canX[0] = e.pageX - can.offsetLeft;
+            canY[0] = e.pageY - can.offsetTop;
+            len = 1;
+        }
+ 
+        function touchXY(e) {
+            if (!e)
+                e = event;
+            e.preventDefault();
+            len = e.targetTouches.length;
+            for (i = 0; i < len; i++) {
+                canX[i] = e.targetTouches[i].pageX - can.offsetLeft;
+                canY[i] = e.targetTouches[i].pageY - can.offsetTop;
+            }
+        }
+    </script>
+</head>
+<body onload="init()">
+    <canvas id="can" height="200" width="300" style="background-color:black">
+    </canvas>
+</body>
+</html>
